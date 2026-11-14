@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Practice Lab | Data Analytics in Accounting</title>
+<style>
+:root{--bg:#fafaf7;--card:#fff;--tx:#1c1c1a;--mu:#6b6b66;--ln:#e3e2db;--ac:#1d5fd1;--ok:#1f8a4c;--wa:#b7791f;--er:#c0392b;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#161615;--card:#201f1e;--tx:#ecebe6;--mu:#a09f97;--ln:#34332f;--ac:#6ea0ff;--ok:#4cc78a;--wa:#e3b04b;--er:#ff7b6b;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#161615;--card:#201f1e;--tx:#ecebe6;--mu:#a09f97;--ln:#34332f;--ac:#6ea0ff;--ok:#4cc78a;--wa:#e3b04b;--er:#ff7b6b;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+nav{display:flex;gap:6px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--ln);align-items:center}
+nav b{margin-right:10px}nav a{padding:6px 12px;border-radius:8px;color:var(--mu);text-decoration:none;font-size:14px}nav a.on{background:var(--ac);color:#fff}
+main{max-width:860px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:26px;margin:8px 0}h2{font-size:19px;margin:24px 0 8px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:16px;margin:12px 0}
+.tag{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;border:1px solid var(--ln);color:var(--mu);margin-right:6px}
+button,select,input{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--ln);border-radius:8px;padding:7px 12px;cursor:pointer}
+button.p{background:var(--ac);color:#fff;border-color:var(--ac)}button.g{border-color:var(--ok);color:var(--ok)}button.w{border-color:var(--wa);color:var(--wa)}button.m{border-color:var(--er);color:var(--er)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0}
+pre,code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}pre{background:var(--bg);border:1px solid var(--ln);border-radius:8px;padding:10px;overflow-x:auto;white-space:pre-wrap;margin:8px 0}
+.ans{border-left:3px solid var(--ac);padding-left:12px;margin-top:10px}
+.bar{height:8px;background:var(--ln);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
+table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--ln);padding:6px 8px;text-align:right}th:first-child,td:first-child{text-align:left}
+.sc{overflow-x:auto}.mu{color:var(--mu);font-size:14px}.ok{color:var(--ok)}.er{color:var(--er)}
+</style></head><body>
+<nav><b>Practice Lab</b><a href="#home">Home</a><a href="#exams">Manipulation exams</a><a href="#bank">Question bank</a><a href="#regression">Interpretation exams</a><a href="#progress">My readiness</a></nav>
+<main id="app"></main>
+<script>
+// ---------- Question bank: every item is traceable to a provided course file ----------
+const Q=[
+["NYC film permits","Excel","In the NYC Film Permits file, how many records and how many columns does the table have?","33,502 records and 14 columns. Check with ROWS()/COLUMNS() or the status bar after Ctrl+A on the data.","PWC Excel Assignment"],
+["NYC film permits","Excel","How many records have a missing ZipCode, and how can you count them with a formula?","11 records. =COUNTBLANK(N2:N33503) (invalid values such as short or non-numeric codes are a separate check: 2 records).","PWC Excel Assignment"],
+["NYC film permits","Excel","Which column holds the same value in every record, and what is the most common EventType?","EventAgency is constant. The most common EventType is Shooting Permit (4 distinct types in total). Use a PivotTable on EventType or =COUNTIF.","PWC Excel Assignment"],
+["NYC film permits","Excel","Considering only Shooting Permits: what is the most common Category, how many student-film permits exist, and what share needed more than one Community Board?","Television is the most common Category. 193 student-film permits. 7.84% needed more than one board (a comma in CommunityBoard(s) signals several: count rows containing a comma, divide by all shooting permits).","PWC Excel Assignment"],
+["ETL","Excel","ETL Case 2: EmployeeCode looks like USA1234-12W. Give formulas to extract Location, EmpID, PlantID, PayPeriod and the LocationPlantID key (e.g. USA-12).","Location =LEFT(A2,3)\nEmpID =MID(A2,4,FIND(\"-\",A2)-4)\nPlantID =MID(A2,FIND(\"-\",A2)+1,2)\nPayPeriod =RIGHT(A2,1)\nKey =J2&\"-\"&L2 (Location&\"-\"&PlantID)","ETL Case 2"],
+["ETL","Excel","ETL Case 3: codes are messier (country codes of different length, PayPeriod is W/We/M/Mo). Which function idea handles the variable-length country code and pay period?","Find the first digit position (MIN of FIND for 0-9 inside an array, or test ISNUMBER(VALUE(MID(...)))) to cut Location with LEFT. Take everything after the last digit for PayPeriod, then standardise with IF(LEFT(x,1)=\"W\",\"W\",\"M\"). Flash Fill is the non-formula alternative but is not repeatable.","ETL Case 3"],
+["ETL","Excel","Why is a comma a risky delimiter, and what is the remedy? Why can Employee_ID alone fail as a unique identifier?","Commas also appear inside text or numbers (e.g. $42,000), so fields split wrongly. Use a text qualifier (double quotes) or a rarer delimiter such as the pipe (AICPA standard). IDs can repeat across locations, so the combination Employee_ID + Location is the unique key.","ETL overview"],
+["ETL","Excel","ETL Case 4: which join gives ALL journal entries plus account, unit, preparer and source details, and why must PreparerName use two keys?","A left join with JELineItems on the left (every entry kept, unmatched lookups return blank). Use INDEX/MATCH rather than VLOOKUP. PreparerID restarts in each business unit, so the key is PreparerID + BusinessUnitID (array MATCH over both), then concatenate first and last name.","ETL Case 4"],
+["IntegrateCo","Excel","IntegrateCo: 2015 data is per employee × job × pay date, 2016 per employee × project with no dates. What must you do before comparing, and how is 2016 Gross_Wages related to 2015?","Aggregate 2015 to employee × project level (no dates) and extract the three-digit job code from the Job/Project string (skip the leading 2-digit year, optional H/S, and optional B/SG location). Gross_Wages (2016) = Reg_Pay + OT_Pay (2015); Hours = Reg_Hrs. Keep job codes as text (001).","IntegrateCo"],
+["IntegrateCo","Excel","How do you find overtime without 40 regular hours in 2015, and how do you spot the 2016 phantom entries?","Sum Reg_Hrs and OT_Hrs per employee and Pay_Date (same date = same pay period), then keep rows where Reg < 40 and OT > 0. Phantom entries are 2016 rows with a blank Employee_Number: count them and sum their Gross_Wages.","IntegrateCo Part 4"],
+["Chinook","SQL","How many invoices have a total greater than $20, and how many are between $10 and $20 (exclusive)?","SELECT COUNT(*) FROM Invoice WHERE Total > 20;  → 4\nSELECT COUNT(*) FROM Invoice WHERE Total > 10 AND Total < 20;  → 60","PWC SQL"],
+["Chinook","SQL","How many invoices have a billing country starting with \"C\", and how many come from Brazil, Argentina or Chile?","SELECT COUNT(*) FROM Invoice WHERE BillingCountry LIKE 'C%';  → 77\nSELECT COUNT(*) FROM Invoice WHERE BillingCountry IN ('Brazil','Argentina','Chile');  → 49","PWC SQL"],
+["Chinook","SQL","Return countries by total invoice value, highest first.","SELECT BillingCountry, SUM(Total) AS TotalValue\nFROM Invoice GROUP BY BillingCountry ORDER BY TotalValue DESC;","PWC SQL"],
+["Chinook","SQL","Return the five most downloaded tracks with full name and number of downloads. What is the most popular genre?","SELECT t.Name, COUNT(*) AS Downloads\nFROM InvoiceLine il JOIN Track t ON t.TrackId = il.TrackId\nGROUP BY t.TrackId ORDER BY Downloads DESC LIMIT 5;\nMost popular genre: Rock (join Track → Genre, GROUP BY genre).","PWC SQL"],
+["CS50 songs","SQL","List the names of the top 3 longest songs. Which songs have danceability, energy and valence all above 0.6?","SELECT name FROM songs ORDER BY duration_ms DESC LIMIT 3;  → Te Bote - Remix, SICKO MODE, Walk It Talk It\nSELECT name FROM songs WHERE danceability>0.6 AND energy>0.6 AND valence>0.6;  → 23 songs","CS50 songs"],
+["CS50 songs","SQL","How many songs are by Drake (without assuming his artist_id), and what is Post Malone’s average energy?","SELECT COUNT(*) FROM songs WHERE artist_id = (SELECT id FROM artists WHERE name='Drake');  → 4\nSELECT AVG(energy) FROM songs WHERE artist_id = (SELECT id FROM artists WHERE name='Post Malone');  → about 0.609","CS50 songs"],
+["CS50 songs","SQL","List songs that feature other artists. How many are there?","SELECT name FROM songs WHERE name LIKE '%feat.%';  → 18 songs","CS50 songs"],
+["CS50 movies","SQL","What is Johnny Depp’s birth year, and how many movies have an IMDb rating above 9.0?","SELECT birth FROM people WHERE name='Johnny Depp';  → 1963\nSELECT COUNT(*) FROM ratings WHERE rating > 9.0;  → 1297","CS50 movies"],
+["CS50 movies","SQL","What is the average rating of movies released in 2013?","SELECT AVG(rating) FROM ratings JOIN movies ON movies.id = ratings.movie_id WHERE year = 2013;  → about 6.234","CS50 movies"],
+["CS50 movies","SQL","List the titles of all movies in which both Johnny Depp and Helena Bonham Carter starred.","SELECT title FROM movies JOIN stars ON id=movie_id\nWHERE person_id=(SELECT id FROM people WHERE name='Johnny Depp')\nINTERSECT\nSELECT title FROM movies JOIN stars ON id=movie_id\nWHERE person_id=(SELECT id FROM people WHERE name='Helena Bonham Carter');\n→ 6 titles (Alice in Wonderland, Charlie and the Chocolate Factory, Corpse Bride, Dark Shadows, Sweeney Todd, Alice Through the Looking Glass)","CS50 movies"],
+["P-card","SQL","How many P-card transactions are in the database, and how many are for $5,000 or more?","SELECT COUNT(*) FROM pcards;  → 489,178\nSELECT COUNT(*) FROM pcards WHERE Amount >= 5000;  → 1,187","P-card Task 4"],
+["P-card","SQL","Transactions per year, most recent year first.","SELECT Year, COUNT(*) AS TotalTrans FROM pcards GROUP BY Year ORDER BY Year DESC;\n→ 2014: 116,031 · 2013: 116,595 · 2012: 117,711 · 2011: 116,188 · 2010: 22,653","P-card Task 4"],
+["P-card","SQL","How much sales tax (4.5%) did OSU avoid in 2014, and how would you test for duplicate payments?","SELECT ROUND(SUM(Amount)*0.045,2) AS SalesTaxSaved FROM pcards WHERE Year=2014;  → 1,507,686.68\nDuplicates (same person, vendor, date, amount, excluding returns):\nSELECT FullName,Vendor,TransactionDate,Amount,COUNT(*) FROM pcards WHERE Year=2014 AND Amount>0 GROUP BY 1,2,3,4 HAVING COUNT(*)>1;  → 1,732 groups","P-card Task 4/7"],
+["P-card","SQL","Which control would a split-purchase test (Task 5) check, and what is the query logic?","Policy: single transaction limit is $5,000. Group by cardholder, vendor and day; keep groups with COUNT(*)>1 and SUM(Amount)>5000. Variants: two cardholders at one vendor, or one cardholder at two vendors on the same day.","P-card Task 5"]
+].map((r,i)=>({id:"q"+i,topic:r[0],tool:r[1],q:r[2],a:r[3],src:r[4]}));
+
+// ---------- helpers ----------
+const $=s=>document.querySelector(s),A=$("#app");
+const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const DAY=864e5,GAP=[0,1,3,7,14];
+let P={};try{P=JSON.parse(localStorage.getItem("pl_prog")||"{}")}catch(e){}
+const save=()=>{try{localStorage.setItem("pl_prog",JSON.stringify(P))}catch(e){}};
+const rate=(id,v)=>{const p=P[id]||{box:0};p.box=v==2?Math.min(4,p.box+1):v==1?p.box:0;p.due=Date.now()+GAP[p.box]*DAY;p.n=(p.n||0)+1;P[id]=p;save()};
+const isDue=q=>P[q.id]&&P[q.id].due<=Date.now()&&P[q.id].box<4;
+const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+function shuffle(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function card(q,i){return `<div class="card"><span class="tag">${q.tool}</span><span class="tag">${esc(q.topic)}</span><span class="tag">source: ${esc(q.src)}</span>
+<p>${i!=null?`<b>${i}.</b> `:""}${esc(q.q)}</p><div id="a-${q.id}"><button onclick="reveal('${q.id}')">Show model answer</button></div></div>`}
+function reveal(id){const q=Q.find(x=>x.id==id),b=P[id]?`<span class="mu">Box ${P[id].box}/4 · attempts ${P[id].n}</span>`:"";
+$("#a-"+id).innerHTML=`<div class="ans"><pre>${esc(q.a)}</pre><div class="row"><span class="mu">How did you do?</span><button class="m" onclick="rt('${id}',0)">Missed it</button><button class="w" onclick="rt('${id}',1)">Partly</button><button class="g" onclick="rt('${id}',2)">Got it</button>${b}</div></div>`}
+function rt(id,v){rate(id,v);$("#a-"+id).innerHTML=`<span class="${v==2?"ok":"er"}">Saved. ${v==2?"Moves up a box; shows again later.":v==1?"Stays in the same box.":"Back to box 0: due for review now."}</span>`}
+
+// ---------- views ----------
+const V={};
+V.home=()=>{const d=Q.filter(isDue).length,seen=Q.filter(q=>P[q.id]).length;
+A.innerHTML=`<h1>Practice the exam you will actually take</h1><p>The oral exam contains one full <b>data manipulation exam</b> (Excel and SQL) and one full <b>data interpretation (regression) exam</b>. Everything here is built from the course cases: NYC film permits, ETL, IntegrateCo, Chinook, CS50 songs and movies, P-cards, and the restaurant regression. Exams are numbered, so Exam 3 is the same for everyone.</p>
+<div class="card"><h2 style="margin-top:0">Your status</h2><p>${seen} of ${Q.length} questions attempted · <b>${d}</b> due for review.</p><div class="row"><a href="#progress"><button class="p">Open my readiness dashboard</button></a><a href="#exams"><button>Start an exam</button></a></div></div>
+<div class="card"><b>What is new compared with a plain question list:</b> every answer you reveal is self-graded, and the site turns that into a topic-by-topic readiness score and a spaced-repetition review queue, so you spend your time on what you actually miss.</div>`};
+V.bank=()=>{const T=[...new Set(Q.map(q=>q.topic))];
+A.innerHTML=`<h1>Question bank</h1><div class="row"><select id="ft"><option value="">All tools</option><option>Excel</option><option>SQL</option></select><select id="fp"><option value="">All topics</option>${T.map(t=>`<option>${esc(t)}</option>`).join("")}</select></div><div id="list"></div>`;
+const f=()=>{const t=$("#ft").value,p=$("#fp").value;$("#list").innerHTML=Q.filter(q=>(!t||q.tool==t)&&(!p||q.topic==p)).map(q=>card(q)).join("")};$("#ft").onchange=$("#fp").onchange=f;f()};
+let tm=null;
+V.exams=()=>{clearInterval(tm);A.innerHTML=`<h1>Data manipulation exams</h1><p>Each exam combines 4 Excel/ETL and 4 SQL questions drawn from the bank with a fixed seed. Optional timer: ${"45"} minutes is a sensible target.</p>
+<div class="row">${[1,2,3,4,5].map(n=>`<button onclick="exam(${n})">Exam ${n}</button>`).join("")}</div><div id="ex"></div>`};
+function exam(n){const r=rng(n*7919),x=shuffle(Q.filter(q=>q.tool=="Excel"),r).slice(0,4),s=shuffle(Q.filter(q=>q.tool=="SQL"),r).slice(0,4);
+$("#ex").innerHTML=`<h2>Exam ${n}</h2><div class="row"><button class="p" id="tb" onclick="timer()">Start timer</button><b id="clk">00:00</b></div>`+[...x,...s].map((q,i)=>card(q,i+1)).join("")}
+function timer(){clearInterval(tm);let t=0;$("#tb").textContent="Restart timer";tm=setInterval(()=>{t++;const c=$("#clk");if(!c)return clearInterval(tm);c.textContent=String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0")},1e3)}
+V.progress=()=>{const T=[...new Set(Q.map(q=>q.topic))],due=Q.filter(isDue);
+const rows=T.map(t=>{const l=Q.filter(q=>q.topic==t),m=l.reduce((s,q)=>s+(P[q.id]?P[q.id].box:0),0)/(l.length*4)*100,a=l.filter(q=>P[q.id]).length;
+return `<tr><td>${esc(t)}</td><td>${a}/${l.length}</td><td style="width:40%"><div class="bar"><i style="width:${m}%"></i></div></td><td>${Math.round(m)}%</td></tr>`}).join("");
+const tot=Math.round(Q.reduce((s,q)=>s+(P[q.id]?P[q.id].box:0),0)/(Q.length*4)*100);
+A.innerHTML=`<h1>My readiness: ${tot}%</h1><p class="mu">Progress is stored only in this browser. Readiness counts a question as mastered after you rate it “Got it” on several separate days.</p><div class="card sc"><table><tr><th>Topic</th><th>Tried</th><th></th><th>Mastery</th></tr>${rows}</table></div>
+<h2>Review queue (${due.length} due)</h2>${due.length?due.map(q=>card(q)).join(""):`<p class="mu">Nothing due. Attempt more questions or come back tomorrow.</p>`}
+<div class="row"><button onclick="if(confirm('Erase all progress?')){P={};save();V.progress()}">Reset progress</button></div>`};
+
+// ---------- regression exams (synthetic models, auto-checked) ----------
+V.regression=()=>{A.innerHTML=`<h1>Data interpretation exams</h1><p>Read the output of a regression of daily restaurant sales, make predictions, and interpret the results. Each exam number generates a fixed synthetic model.</p><div class="row">${[1,2,3,4,5].map(n=>`<button onclick="reg(${n})">Exam ${n}</button>`).join("")}</div><div id="rg"></div>`};
+function reg(n){const r=rng(n*104729),u=(a,b)=>a+(b-a)*r(),R=x=>Math.round(x),
+b0=R(u(600,1400)),bt=+u(3,9).toFixed(1),bg=R(u(150,450)),bl=+u(.35,.8).toFixed(2),
+tg=r()<.5?+u(.7,1.5).toFixed(2):+u(3,6).toFixed(2),tt=+u(4,9).toFixed(2),tl=+u(5,12).toFixed(2),r2=+u(.55,.9).toFixed(2),
+T=R(u(35,85)),G=r()<.5?1:0,L=R(u(1500,2500)),pred=b0+bt*T+bg*G+bl*L,sig=tg>1.96;
+const se=(b,t)=>Math.abs(b/t).toFixed(2),
+rows=[["Intercept",b0,b0/ (u(3,6)),0],["Temperature (°F)",bt,tt],["GameDay (1=yes)",bg,tg],["Sales 364 days ago ($)",bl,tl]];
+window.K={pred,per10:bt*10,sig};
+$("#rg").innerHTML=`<h2>Exam ${n}</h2><div class="card sc"><b>Dependent variable: daily net sales ($) · R² = ${r2} · n = 300</b><table><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>t-stat</th></tr>
+<tr><td>Intercept</td><td>${b0}</td><td>${se(b0,5)}</td><td>5.00</td></tr><tr><td>Temperature (°F)</td><td>${bt}</td><td>${se(bt,tt)}</td><td>${tt}</td></tr><tr><td>GameDay (1=yes)</td><td>${bg}</td><td>${se(bg,tg)}</td><td>${tg}</td></tr><tr><td>Sales 364 days ago ($)</td><td>${bl}</td><td>${se(bl,tl)}</td><td>${tl}</td></tr></table></div>
+<div class="card"><p><b>1.</b> Predict sales for a day with temperature ${T}°F, ${G?"a game day":"no game"}, and last year’s sales of $${L}.</p><div class="row"><input id="r1" type="number" placeholder="$"><button onclick="ck(1)">Check</button><span id="o1"></span></div></div>
+<div class="card"><p><b>2.</b> By how many dollars do sales change when temperature rises by 10°F, holding the other variables fixed?</p><div class="row"><input id="r2" type="number"><button onclick="ck(2)">Check</button><span id="o2"></span></div></div>
+<div class="card"><p><b>3.</b> Is GameDay statistically significant at the 5% level (|t| &gt; about 2)?</p><div class="row"><button onclick="ck(3,1)">Yes</button><button onclick="ck(3,0)">No</button><span id="o3"></span></div></div>
+<div class="card"><p><b>4.</b> In words, what does R² = ${r2} tell Bob, and how confident should he be in a 7-day-ahead forecast?</p><div id="a4"><button onclick="this.parentNode.innerHTML='<div class=&quot;ans&quot;>The model explains about ${R(r2*100)}% of the variation in daily sales; ${R((1-r2)*100)}% is unexplained. Confidence also depends on the forecast inputs: future temperature and last year’s sales are known or forecastable, but a point prediction should be reported with a range, and a 7-day weather forecast adds error.</div>'">Show model answer</button></div></div>`}
+function ck(i,v){const o=$("#o"+i),K=window.K;let ok;
+if(i==1)ok=Math.abs(+$("#r1").value-K.pred)<=1;else if(i==2)ok=Math.abs(+$("#r2").value-K.per10)<=.5;else ok=(v==1)==K.sig;
+o.innerHTML=ok?`<b class="ok">Correct.</b>`:`<b class="er">Not quite.</b> ${i==1?"Intercept + Σ(coefficient × value). Answer: "+K.pred.toFixed(2):i==2?"10 × the temperature coefficient = "+K.per10.toFixed(1):K.sig?"|t| is above 2, so it is significant.":"|t| is below 2, so it is not significant."}`}
+
+function route(){const h=(location.hash||"#home").slice(1);document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")=="#"+h));clearInterval(tm);(V[h]||V.home)();scrollTo(0,0)}
+addEventListener("hashchange",route);route();
+</script></body></html>
