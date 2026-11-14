@@ -21,7 +21,7 @@ pre,code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px}pre{ba
 .ans{border-left:3px solid var(--ac);padding-left:12px;margin-top:10px}
 .bar{height:8px;background:var(--ln);border-radius:9px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ok)}
 table{border-collapse:collapse;width:100%;font-size:14px}td,th{border-bottom:1px solid var(--ln);padding:6px 8px;text-align:right}th:first-child,td:first-child{text-align:left}
-.sc{overflow-x:auto}.mu{color:var(--mu);font-size:14px}.ok{color:var(--ok)}.er{color:var(--er)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:12px 0}.gc{text-align:left;padding:12px;line-height:1.45;background:var(--card)}.sc{overflow-x:auto}.mu{color:var(--mu);font-size:14px}.ok{color:var(--ok)}.er{color:var(--er)}
 </style></head><body>
 <nav><b>Practice Lab</b><a href="#home">Home</a><a href="#exams">Manipulation exams</a><a href="#bank">Question bank</a><a href="#regression">Interpretation exams</a><a href="#progress">My readiness</a></nav>
 <main id="app"></main>
@@ -67,25 +67,48 @@ function shuffle(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.flo
 
 function card(q,i){return `<div class="card"><span class="tag">${q.tool}</span><span class="tag">${esc(q.topic)}</span><span class="tag">source: ${esc(q.src)}</span>
 <p>${i!=null?`<b>${i}.</b> `:""}${esc(q.q)}</p><div id="a-${q.id}"><button onclick="reveal('${q.id}')">Show model answer</button></div></div>`}
-function reveal(id){const q=Q.find(x=>x.id==id),b=P[id]?`<span class="mu">Box ${P[id].box}/4 · attempts ${P[id].n}</span>`:"";
+function reveal(id){const q=Q.find(x=>x.id==id)||G[id],b=P[id]?`<span class="mu">Box ${P[id].box}/4 · attempts ${P[id].n}</span>`:"";
 $("#a-"+id).innerHTML=`<div class="ans"><pre>${esc(q.a)}</pre><div class="row"><span class="mu">How did you do?</span><button class="m" onclick="rt('${id}',0)">Missed it</button><button class="w" onclick="rt('${id}',1)">Partly</button><button class="g" onclick="rt('${id}',2)">Got it</button>${b}</div></div>`}
-function rt(id,v){rate(id,v);$("#a-"+id).innerHTML=`<span class="${v==2?"ok":"er"}">Saved. ${v==2?"Moves up a box; shows again later.":v==1?"Stays in the same box.":"Back to box 0: due for review now."}</span>`}
+function rt(id,v){if(id[0]!="g")rate(id,v);$("#a-"+id).innerHTML=`<span class="${v==2?"ok":"er"}">Saved. ${v==2?"Moves up a box; shows again later.":v==1?"Stays in the same box.":"Back to box 0: due for review now."}</span>`}
 
 // ---------- views ----------
 const V={};
 V.home=()=>{const d=Q.filter(isDue).length,seen=Q.filter(q=>P[q.id]).length;
-A.innerHTML=`<h1>Practice the exam you will actually take</h1><p>The oral exam contains one full <b>data manipulation exam</b> (Excel and SQL) and one full <b>data interpretation (regression) exam</b>. Everything here is built from the course cases: NYC film permits, ETL, IntegrateCo, Chinook, CS50 songs and movies, P-cards, and the restaurant regression. Exams are numbered, so Exam 3 is the same for everyone.</p>
+A.innerHTML=`<h1>Practice the exam you will actually take</h1><p>The oral exam contains one full <b>data manipulation exam</b> (Excel and SQL) and one full <b>data interpretation (regression) exam</b>. Everything here is built from the course cases: NYC film permits, ETL, IntegrateCo, Chinook, CS50 songs and movies, P-cards, and the restaurant regression. There are 800 data manipulation exams (E001 to E800) and 30 data interpretation exams (REG001 to REG030); each ID is the same for everyone.</p>
 <div class="card"><h2 style="margin-top:0">Your status</h2><p>${seen} of ${Q.length} questions attempted · <b>${d}</b> due for review.</p><div class="row"><a href="#progress"><button class="p">Open my readiness dashboard</button></a><a href="#exams"><button>Start an exam</button></a></div></div>
 <div class="card"><b>What is new compared with a plain question list:</b> every answer you reveal is self-graded, and the site turns that into a topic-by-topic readiness score and a spaced-repetition review queue, so you spend your time on what you actually miss.</div>`};
 V.bank=()=>{const T=[...new Set(Q.map(q=>q.topic))];
 A.innerHTML=`<h1>Question bank</h1><div class="row"><select id="ft"><option value="">All tools</option><option>Excel</option><option>SQL</option></select><select id="fp"><option value="">All topics</option>${T.map(t=>`<option>${esc(t)}</option>`).join("")}</select></div><div id="list"></div>`;
 const f=()=>{const t=$("#ft").value,p=$("#fp").value;$("#list").innerHTML=Q.filter(q=>(!t||q.tool==t)&&(!p||q.topic==p)).map(q=>card(q)).join("")};$("#ft").onchange=$("#fp").onchange=f;f()};
 let tm=null;
-V.exams=()=>{clearInterval(tm);A.innerHTML=`<h1>Data manipulation exams</h1><p>Each exam combines 4 Excel/ETL and 4 SQL questions drawn from the bank with a fixed seed. Optional timer: ${"45"} minutes is a sensible target.</p>
-<div class="row">${[1,2,3,4,5].map(n=>`<button onclick="exam(${n})">Exam ${n}</button>`).join("")}</div><div id="ex"></div>`};
-function exam(n){const r=rng(n*7919),x=shuffle(Q.filter(q=>q.tool=="Excel"),r).slice(0,4),s=shuffle(Q.filter(q=>q.tool=="SQL"),r).slice(0,4);
-$("#ex").innerHTML=`<h2>Exam ${n}</h2><div class="row"><button class="p" id="tb" onclick="timer()">Start timer</button><b id="clk">00:00</b></div>`+[...x,...s].map((q,i)=>card(q,i+1)).join("")}
-function timer(){clearInterval(tm);let t=0;$("#tb").textContent="Restart timer";tm=setInterval(()=>{t++;const c=$("#clk");if(!c)return clearInterval(tm);c.textContent=String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0")},1e3)}
+const pk=(a,r)=>a[Math.floor(r()*a.length)],ri=(a,b,r)=>a+Math.floor(r()*(b-a+1)),fm=n=>n.toLocaleString("en-US"),sg=x=>Number(x.toPrecision(3)),pad=n=>String(n).padStart(3,"0");
+const mk=(tool,topic,q,a,src)=>({id:"g",tool,topic,q,a,src}),G={};
+const D={ch:{USA:91,Canada:56,France:35,Brazil:35,Germany:28,"United Kingdom":21,Portugal:14,"Czech Republic":14,India:13,Sweden:7},inv:{2:242,5:179,8:120,10:64,12:61},cust:{USA:13,Canada:8,France:5,Brazil:5,Germany:4,"United Kingdom":3},so:{XXXTENTACION:6,"Post Malone":6,Drake:4,Marshmello:3,"Ed Sheeran":3,"The Weeknd":2,"Selena Gomez":2,Ozuna:2},mv:{2000:4902,2003:5583,2006:7532,2009:11030,2012:13591,2015:15974},mr:{2000:138,2003:281,2006:405,2009:632,2012:804,2015:926},pc:{500:17482,1000:7579,2000:2771,3000:1219,5000:53},pm:{1:9599,3:9899,6:9879,9:10226,12:6907}};
+const kv=(o,r)=>{const k=pk(Object.keys(o),r);return[k,o[k]]},sq=(t,q,s,n,src)=>mk("SQL",t,q,`${s}  → ${fm(n)}`,src);
+// Excel generators (answers computed live)
+const C2=["ARG","AUS","CAN","ENG","GER","JAP","MEX","USA"],C3=["ARG","AUS","Canada","ENG","GER","Japan","MEX","US"];
+const gc2=r=>{const L=pk(C2,r),e=ri(1000,1597,r),p=ri(10,19,r),w=pk(["W","M"],r),c=L+e+"-"+p+w,T=[["Location","=LEFT(A2,3)",L],["EmpID","=MID(A2,4,FIND(\"-\",A2)-4)",e],["PlantID","=MID(A2,FIND(\"-\",A2)+1,2)",p],["PayPeriod","=RIGHT(A2,1)",w],["LocationPlantID","=LEFT(A2,3)&\"-\"&MID(A2,FIND(\"-\",A2)+1,2)",L+"-"+p]][ri(0,4,r)];return mk("Excel","Plant codes",`ETL Case 2: the EmployeeCode in A2 is ${c}. Which formula extracts ${T[0]}, and what does it return?`,`${T[1]}  → ${T[2]}`,"ETL Case 2")};
+const gc3=r=>{const L=pk(C3,r),e=ri(1,597,r),p=ri(1,9,r),w=pk(["W","We","M","Mo"],r),c=L+e+"-"+p+w,T=[["EmpID",e,"the digits between the location letters and the hyphen (find the first digit with FIND/MIN, then MID up to the hyphen, VALUE to make it a number)"],["PlantID",p,"the digit(s) right after the hyphen"],["PayPeriod standardised to W or M",w[0],"the letters after the plant digits, mapped with IF(LEFT(x,1)=\"W\",\"W\",\"M\")"]][ri(0,2,r)];return mk("Excel","Plant codes",`ETL Case 3: the code in A2 is ${c} (location codes vary in length; pay period may be W, We, M or Mo). What is the ${T[0]}, and how do you extract it?`,`${T[0]} = ${T[1]}. Method: take ${T[2]}.`,"ETL Case 3")};
+const gjob=r=>{const y=pk([14,15],r),d=pk(["","H","S"],r),j=pad(ri(1,12,r)),l=pk(["","B","SG"],r);return mk("Excel","Job codes",`IntegrateCo: the Job field reads ${y+d+j+l}. Give the project start year, department, three-digit job code and location code.`,`Year 20${y} · department ${d||"none"} · job code ${j} · location ${l||"none"}.\nKeep the job code as text (001, not 1).`,"IntegrateCo")};
+const gwage=r=>{const rp=ri(800,4000,r)+ri(0,99,r)/100,op=ri(0,900,r)+ri(0,99,r)/100,rh=ri(40,160,r),oh=ri(0,30,r),g=rp+op;return mk("Excel","Job codes",`IntegrateCo 2015 row: Reg_Pay ${rp.toFixed(2)}, OT_Pay ${op.toFixed(2)}, Reg_Hrs ${rh}, OT_Hrs ${oh}. What is the equivalent 2016 Gross_Wages, and the gross pay per hour over all hours?`,`Gross_Wages = Reg_Pay + OT_Pay = ${g.toFixed(2)}\nPay per hour = ${g.toFixed(2)} / ${rh+oh} = ${(g/(rh+oh)).toFixed(2)}`,"IntegrateCo")};
+const gjoin=r=>{const n=ri(6,12,r),a=ri(2,n-1,r),b=a+ri(0,4,r),u=ri(1,4,r),t=pk(["inner","left","right","full outer"],r),v={inner:b,left:b+n-a,right:b+u,"full outer":b+n-a+u}[t];return mk("Excel","Joins & data quality",`ETL join: the Customer table has ${n} customers; ${a} of them placed orders, ${b} orders in total belong to those customers, and ${u} further orders have no customer ID. How many rows does a ${t} join (Customer to Orders on Customer_ID) return?`,`${v} rows. Inner = matched orders (${b}); left adds customers without orders (${n-a}); right adds orders without a customer (${u}); full outer adds both.`,"ETL overview")};
+const s=i=>()=>Q[i];
+const EX={"Plant codes":[gc2,gc2,gc3,gc3,s(4),s(5)],"Job codes":[gjob,gjob,gwage,gwage,s(8),s(9)],"Joins & data quality":[gjoin,gjoin,gjoin,s(6),s(7),s(0),s(1),s(2),s(3)]};
+// SQL generators (answers precomputed from the course databases)
+const g1=(t,f)=>r=>{const[k,n]=kv(D[f[0]],r);return sq(t,f[1](k),f[2](k),n,f[3])};
+const SX={"Chinook":[g1("Chinook",["ch",k=>`How many invoices have the billing country ${k}?`,k=>`SELECT COUNT(*) FROM Invoice WHERE BillingCountry = '${k}';`,"PWC SQL"]),g1("Chinook",["inv",k=>`How many invoices have a total greater than $${k}?`,k=>`SELECT COUNT(*) FROM Invoice WHERE Total > ${k};`,"PWC SQL"]),g1("Chinook",["cust",k=>`How many customers are located in ${k}?`,k=>`SELECT COUNT(*) FROM Customer WHERE Country = '${k}';`,"PWC SQL"]),s(10),s(11),s(12),s(13)],
+"CS50 songs":[g1("CS50 songs",["so",k=>`How many songs are by ${k}? Do not assume the artist_id.`,k=>`SELECT COUNT(*) FROM songs WHERE artist_id = (SELECT id FROM artists WHERE name = '${k}');`,"CS50 songs"]),g1("CS50 songs",["so",k=>`How many songs by ${k} are in the database?`,k=>`SELECT COUNT(*) FROM songs JOIN artists ON artists.id = songs.artist_id WHERE artists.name = '${k}';`,"CS50 songs"]),s(14),s(15),s(16)],
+"CS50 movies":[g1("CS50 movies",["mv",k=>`How many movies were released in ${k}?`,k=>`SELECT COUNT(*) FROM movies WHERE year = ${k};`,"CS50 movies"]),g1("CS50 movies",["mr",k=>`How many movies released in ${k} have an IMDb rating of at least 8.0?`,k=>`SELECT COUNT(*) FROM movies JOIN ratings ON movies.id = ratings.movie_id WHERE year = ${k} AND rating >= 8;`,"CS50 movies"]),s(17),s(18),s(19)],
+"P-cards":[g1("P-cards",["pc",k=>`How many 2014 P-card transactions are for $${k} or more?`,k=>`SELECT COUNT(*) FROM pcards WHERE Year = 2014 AND Amount >= ${k};`,"P-card Task 4"]),g1("P-cards",["pm",k=>`How many P-card transactions were made in month ${k} of 2014?`,k=>`SELECT COUNT(*) FROM pcards WHERE Year = 2014 AND Month = ${k};`,"P-card Task 4"]),s(20),s(21),s(22),s(23)]};
+const XT=Object.keys(EX),ST=Object.keys(SX),theme=n=>[XT[(n-1)%3],ST[Math.floor((n-1)/3)%4]];
+function draw(L,r,k,n,off){const out=[],seen={};let t=0;while(out.length<k&&t++<80){const q=pk(L,r)(r);if(seen[q.q])continue;seen[q.q]=1;const x={...q,id:q.id=="g"?"g"+n+"_"+(off+out.length):q.id};G[x.id]=x;out.push(x)}return out}
+function exam(n){const r=rng(n*7919+13),[e,s]=theme(n),qs=[...draw(EX[e],r,4,n,0),...draw(SX[s],r,4,n,4)];
+$("#ex").innerHTML=`<h2>E${pad(n)} · ${esc(e)} + ${esc(s)}</h2><div class="row"><button class="p" id="tb" onclick="timer()">Start 12:00 timer</button><b id="clk">12:00</b></div>`+qs.map((q,i)=>card(q,i+1)).join("")+`<div class="row"><button class="g" onclick="done('x_E${n}',this)">Mark exam as done</button></div>`;scrollTo(0,0)}
+function done(k,b){P[k]=1;save();b.textContent="Done ✓ saved"}
+function timer(){clearInterval(tm);let t=720;$("#tb").textContent="Restart";tm=setInterval(()=>{const c=$("#clk");if(!c)return clearInterval(tm);t--;c.textContent=t<=0?"Time’s up":String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0");if(t<=0)clearInterval(tm)},1e3)}
+V.exams=()=>{clearInterval(tm);const o=a=>a.map(t=>`<option>${esc(t)}</option>`).join("");
+A.innerHTML=`<h1>Data manipulation exams</h1><p>800 exams, each with 8 questions (4 Excel and 4 SQL) built around one Excel topic and one SQL topic. Exam IDs are fixed, so E123 is the same for everyone. Many numbers, codes and filters change from exam to exam.</p><div class="row"><button class="p" onclick="exam(1+Math.floor(Math.random()*800))">Choose one for me</button><select id="fe"><option value="">All Excel topics</option>${o(XT)}</select><select id="fs"><option value="">All SQL topics</option>${o(ST)}</select></div><div id="ex"></div><div class="grid" id="gr"></div>`;
+const f=()=>{const a=$("#fe").value,b=$("#fs").value;let h="";for(let n=1;n<=800;n++){const[e,s]=theme(n);if((a&&a!=e)||(b&&b!=s))continue;h+=`<button class="gc" onclick="exam(${n})"><span class="mu">E${pad(n)}${P["x_E"+n]?" ✓":""}</span><br><b>${esc(e)}</b><br><span class="mu">+ ${esc(s)}</span><br><span class="mu">8 questions · Excel &amp; SQL · 12:00</span></button>`}$("#gr").innerHTML=h};$("#fe").onchange=$("#fs").onchange=f;f()};
 V.progress=()=>{const T=[...new Set(Q.map(q=>q.topic))],due=Q.filter(isDue);
 const rows=T.map(t=>{const l=Q.filter(q=>q.topic==t),m=l.reduce((s,q)=>s+(P[q.id]?P[q.id].box:0),0)/(l.length*4)*100,a=l.filter(q=>P[q.id]).length;
 return `<tr><td>${esc(t)}</td><td>${a}/${l.length}</td><td style="width:40%"><div class="bar"><i style="width:${m}%"></i></div></td><td>${Math.round(m)}%</td></tr>`}).join("");
@@ -94,24 +117,49 @@ A.innerHTML=`<h1>My readiness: ${tot}%</h1><p class="mu">Progress is stored only
 <h2>Review queue (${due.length} due)</h2>${due.length?due.map(q=>card(q)).join(""):`<p class="mu">Nothing due. Attempt more questions or come back tomorrow.</p>`}
 <div class="row"><button onclick="if(confirm('Erase all progress?')){P={};save();V.progress()}">Reset progress</button></div>`};
 
-// ---------- regression exams (synthetic models, auto-checked) ----------
-V.regression=()=>{A.innerHTML=`<h1>Data interpretation exams</h1><p>Read the output of a regression of daily restaurant sales, make predictions, and interpret the results. Each exam number generates a fixed synthetic model.</p><div class="row">${[1,2,3,4,5].map(n=>`<button onclick="reg(${n})">Exam ${n}</button>`).join("")}</div><div id="rg"></div>`};
-function reg(n){const r=rng(n*104729),u=(a,b)=>a+(b-a)*r(),R=x=>Math.round(x),
-b0=R(u(600,1400)),bt=+u(3,9).toFixed(1),bg=R(u(150,450)),bl=+u(.35,.8).toFixed(2),
-tg=r()<.5?+u(.7,1.5).toFixed(2):+u(3,6).toFixed(2),tt=+u(4,9).toFixed(2),tl=+u(5,12).toFixed(2),r2=+u(.55,.9).toFixed(2),
-T=R(u(35,85)),G=r()<.5?1:0,L=R(u(1500,2500)),pred=b0+bt*T+bg*G+bl*L,sig=tg>1.96;
-const se=(b,t)=>Math.abs(b/t).toFixed(2),
-rows=[["Intercept",b0,b0/ (u(3,6)),0],["Temperature (°F)",bt,tt],["GameDay (1=yes)",bg,tg],["Sales 364 days ago ($)",bl,tl]];
-window.K={pred,per10:bt*10,sig};
-$("#rg").innerHTML=`<h2>Exam ${n}</h2><div class="card sc"><b>Dependent variable: daily net sales ($) · R² = ${r2} · n = 300</b><table><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>t-stat</th></tr>
-<tr><td>Intercept</td><td>${b0}</td><td>${se(b0,5)}</td><td>5.00</td></tr><tr><td>Temperature (°F)</td><td>${bt}</td><td>${se(bt,tt)}</td><td>${tt}</td></tr><tr><td>GameDay (1=yes)</td><td>${bg}</td><td>${se(bg,tg)}</td><td>${tg}</td></tr><tr><td>Sales 364 days ago ($)</td><td>${bl}</td><td>${se(bl,tl)}</td><td>${tl}</td></tr></table></div>
-<div class="card"><p><b>1.</b> Predict sales for a day with temperature ${T}°F, ${G?"a game day":"no game"}, and last year’s sales of $${L}.</p><div class="row"><input id="r1" type="number" placeholder="$"><button onclick="ck(1)">Check</button><span id="o1"></span></div></div>
-<div class="card"><p><b>2.</b> By how many dollars do sales change when temperature rises by 10°F, holding the other variables fixed?</p><div class="row"><input id="r2" type="number"><button onclick="ck(2)">Check</button><span id="o2"></span></div></div>
-<div class="card"><p><b>3.</b> Is GameDay statistically significant at the 5% level (|t| &gt; about 2)?</p><div class="row"><button onclick="ck(3,1)">Yes</button><button onclick="ck(3,0)">No</button><span id="o3"></span></div></div>
-<div class="card"><p><b>4.</b> In words, what does R² = ${r2} tell Bob, and how confident should he be in a 7-day-ahead forecast?</p><div id="a4"><button onclick="this.parentNode.innerHTML='<div class=&quot;ans&quot;>The model explains about ${R(r2*100)}% of the variation in daily sales; ${R((1-r2)*100)}% is unexplained. Confidence also depends on the forecast inputs: future temperature and last year’s sales are known or forecastable, but a point prediction should be reported with a range, and a 7-day weather forecast adds error.</div>'">Show model answer</button></div></div>`}
-function ck(i,v){const o=$("#o"+i),K=window.K;let ok;
-if(i==1)ok=Math.abs(+$("#r1").value-K.pred)<=1;else if(i==2)ok=Math.abs(+$("#r2").value-K.per10)<=.5;else ok=(v==1)==K.sig;
-o.innerHTML=ok?`<b class="ok">Correct.</b>`:`<b class="er">Not quite.</b> ${i==1?"Intercept + Σ(coefficient × value). Answer: "+K.pred.toFixed(2):i==2?"10 × the temperature coefficient = "+K.per10.toFixed(1):K.sig?"|t| is above 2, so it is significant.":"|t| is below 2, so it is not significant."}`}
+// ---------- regression exams: 30 themed exams x 4 questions, each question has its own model ----------
+const RD=`Apartment prices|monthly rent ($)|1400|size (m²):30-150+,building age (years):0-60-,distance to centre (km):1-15-,balconies:0-2+
+Restaurant sales|daily net sales ($)|3000|temperature (°F):30-95+,game day (1 = yes):0-1+,sales 364 days ago ($):1500-4000+,rainfall (inches):0-2-
+Employee wages|hourly wage ($)|25|years of experience:0-30+,education (years):10-20+,weekly hours:20-60+,commute (km):0-50-
+Used-car prices|price ($)|15000|age (years):1-15-,mileage (000 km):10-250-,engine size (litres):1-4+,accidents:0-3-
+Hotel revenue|nightly revenue ($)|9000|occupancy (%):30-100+,average room rate ($):80-250+,local events:0-5+,days to holiday:0-60-
+Delivery times|delivery time (minutes)|35|distance (km):1-20+,orders in queue:0-15+,rain (1 = yes):0-1+,couriers on shift:3-15-
+Household electricity use|monthly use (kWh)|600|household size:1-6+,home size (m²):40-250+,outdoor temperature (°C):0-30-,solar panels (1 = yes):0-1-
+Coffee-shop sales|daily sales ($)|1200|temperature (°F):30-95-,foot traffic (people per hour):20-200+,promotion (1 = yes):0-1+,weekend (1 = yes):0-1+
+Manufacturing costs|monthly cost ($)|80000|units produced:1000-9000+,machine downtime (hours):0-60+,overtime hours:0-400+,raw-material price index:80-140+
+House prices|sale price (000 $)|350|floor area (m²):50-300+,bedrooms:1-6+,age (years):0-80-,distance to school (km):0-10-
+Student exam scores|exam score (points)|70|study hours per week:0-30+,attendance (%):40-100+,sleep (hours):4-10+,absences:0-15-
+Airline fares|ticket price ($)|300|distance (km):300-9000+,days booked in advance:1-90-,seats left:1-120-,holiday week (1 = yes):0-1+
+Gym memberships|monthly sign-ups|150|advertising spend (000 $):0-20+,discount (%):0-40+,January (1 = yes):0-1+,competitor gyms nearby:0-6-
+Fuel consumption|litres per 100 km|8|vehicle weight (kg):900-2500+,speed (km/h):50-130+,tyre pressure (psi):26-38-,city driving (%):0-100+
+Online store orders|daily orders|400|ad clicks (000):1-50+,discount (%):0-40+,page load time (sec):1-8-,weekend (1 = yes):0-1+
+Hospital stay length|stay (days)|6|patient age (years):20-90+,surgery (1 = yes):0-1+,comorbidities:0-5+,nurse staffing ratio:1-6-
+Crop yields|yield (tonnes per ha)|8|rainfall (mm):200-900+,fertiliser (kg per ha):0-200+,average temperature (°C):10-30-,soil quality score:1-10+
+Taxi fares|fare ($)|25|distance (km):1-40+,waiting time (min):0-20+,night trip (1 = yes):0-1+,passengers:1-4+
+Warehouse costs|monthly cost ($)|50000|pallets stored:500-5000+,staff hours:200-2000+,forklifts:1-10+,automation score:0-10-
+Software subscriptions|monthly cancellations|120|price ($):10-100+,support tickets:0-60+,months as customer:1-48-,feature use (%):0-100-
+Bakery sales|daily sales ($)|900|temperature (°C):0-30-,advertising ($):0-100+,holiday (1 = yes):0-1+,competitors nearby:0-5-
+Rental car demand|daily rentals|80|tourists (000):1-30+,price ($ per day):30-120-,rain (1 = yes):0-1-,holiday (1 = yes):0-1+
+Audit hours|audit hours|600|client revenue (m $):1-200+,subsidiaries:1-20+,prior misstatements:0-8+,internal control score:1-10-
+Bad-debt expense|expense ($)|20000|credit sales (000 $):100-2000+,average days outstanding:15-90+,customer credit score:500-800-,recession (1 = yes):0-1+
+Payroll costs|monthly payroll ($)|90000|employees:10-120+,overtime hours:0-300+,average hourly wage ($):15-45+,job codes in use:1-12+
+Inventory shrinkage|shrinkage (% of stock)|2|staff turnover (%):0-60+,cameras installed:0-20-,store size (000 m²):1-10+,audits per year:0-12-
+Customer satisfaction|satisfaction score (0-100)|70|wait time (min):0-45-,staff friendliness (1-10):1-10+,price paid ($):5-100-,repeat visit (1 = yes):0-1+
+Office energy bills|monthly bill ($)|4000|floor area (m²):200-3000+,occupants:10-200+,outdoor temperature (°C):0-30-,smart thermostat (1 = yes):0-1-
+Ride-share earnings|hourly earnings ($)|22|surge multiplier:1-3+,trips per hour:1-5+,rain (1 = yes):0-1+,night shift (1 = yes):0-1+
+Insurance claims|claim amount ($)|4000|driver age (years):18-75-,vehicle value (000 $):5-80+,previous claims:0-5+,urban area (1 = yes):0-1+`.split("\n").map(l=>{const p=l.split("|");return{n:p[0],dv:p[1],b:+p[2],v:p[3].split(",").map(s=>{const m=s.match(/^(.+):(\d+)-(\d+)([+-])$/);return{n:m[1],lo:+m[2],hi:+m[3],s:m[4]=="+"?1:-1}})}});
+function model(D,r){const u=(a,b)=>a+(b-a)*r(),V=shuffle(D.v,r).slice(0,3).map(v=>{const b=sg(v.s*D.b*u(.08,.3)/(v.hi-v.lo)),se=sg(Math.abs(b)/(r()<.35?u(.5,1.7):u(2.6,9)));return{...v,b,se,t:b/se,x:v.hi-v.lo==1?(r()<.5?1:0):ri(v.lo,v.hi,r)}}),b0=sg(D.b*u(.3,.6));return{D,V,b0,se0:sg(b0/u(3,8)),r2:+u(.45,.92).toFixed(2),n:ri(80,400,r)}}
+const tbl=m=>`<div class="sc"><b>Dependent variable: ${esc(m.D.dv)} · R² = ${m.r2} · n = ${m.n}</b><table><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>t-stat</th></tr><tr><td>Intercept</td><td>${m.b0}</td><td>${m.se0}</td><td>${(m.b0/m.se0).toFixed(2)}</td></tr>${m.V.map(v=>`<tr><td>${esc(v.n)}</td><td>${v.b}</td><td>${v.se}</td><td>${v.t.toFixed(2)}</td></tr>`).join("")}</table></div>`;
+V.regression=()=>{A.innerHTML=`<h1>Data interpretation exams</h1><p>Each exam contains four regression questions. Each question has its own model and coefficients.</p><div class="row"><button class="p" onclick="reg(1+Math.floor(Math.random()*30))">Choose one for me</button></div><div id="rg"></div><h2>Browse all 30 data interpretation exams</h2><div class="grid">${RD.map((d,i)=>`<button class="gc" onclick="reg(${i+1})"><span class="mu">REG${pad(i+1)}${P["x_REG"+(i+1)]?" ✓":""}</span><br><b>${esc(d.n)}</b><br><span class="mu">4 questions · Data interpretation</span></button>`).join("")}</div>`};
+function reg(n){const D=RD[n-1];window.K=[];let h=`<h2>REG${pad(n)} · ${esc(D.n)}</h2>`;
+for(let i=0;i<4;i++){const r=rng(n*1000+i*37+5),m=model(D,r),v=m.V[ri(0,2,r)];let q,a;
+if(i==0){const p=m.b0+m.V.reduce((s,w)=>s+w.b*w.x,0);q=`Predict ${D.dv} when ${m.V.map(w=>w.n+" = "+w.x).join("; ")}.`;a={k:"n",v:p,tol:Math.max(.5,Math.abs(p)*.005),h:"Intercept + Σ coefficient × value = "+p.toFixed(2)}}
+else if(i==1){const k=v.hi-v.lo==1?1:pk([1,5,10],r);q=`By how much does ${D.dv} change when ${v.n} rises by ${k}, other variables held fixed?`;a={k:"n",v:v.b*k,tol:Math.abs(v.b*k)*.01+.001,h:k+" × "+v.b+" = "+sg(v.b*k)}}
+else if(i==2){const z=Math.abs(v.t)>1.96;q=`Is ${v.n} statistically significant at the 5% level (use |t| > 1.96)?`;a={k:"b",v:z,h:"|t| = "+Math.abs(v.t).toFixed(2)+(z?", above 1.96: significant.":", below 1.96: not significant.")}}
+else{const lo=v.b-1.96*v.se;q=`Give the lower bound of the approximate 95% confidence interval for the coefficient on ${v.n}.`;a={k:"n",v:lo,tol:Math.abs(lo)*.01+.001,h:v.b+" − 1.96 × "+v.se+" = "+sg(lo)}}
+K.push(a);h+=`<div class="card"><p><b>${i+1}.</b> ${esc(q)}</p>${tbl(m)}<div class="row">${a.k=="n"?`<input id="r${i}" type="number" step="any"><button onclick="ck(${i})">Check</button>`:`<button onclick="ck(${i},1)">Yes</button><button onclick="ck(${i},0)">No</button>`}<span id="o${i}"></span></div></div>`}
+$("#rg").innerHTML=h+`<div class="row"><button class="g" onclick="done('x_REG${n}',this)">Mark exam as done</button></div>`;scrollTo(0,0)}
+function ck(i,v){const a=K[i],ok=a.k=="n"?Math.abs(+$("#r"+i).value-a.v)<=a.tol:(v==1)==a.v;$("#o"+i).innerHTML=ok?`<b class="ok">Correct.</b> ${a.h}`:`<b class="er">Not quite.</b> ${a.h}`}
 
 function route(){const h=(location.hash||"#home").slice(1);document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")=="#"+h));clearInterval(tm);(V[h]||V.home)();scrollTo(0,0)}
 addEventListener("hashchange",route);route();
