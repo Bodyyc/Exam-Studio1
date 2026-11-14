@@ -60,8 +60,10 @@ const esc=s=>String(s).replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[
 const DAY=864e5,GAP=[0,1,3,7,14];
 let P={};try{P=JSON.parse(localStorage.getItem("pl_prog")||"{}")}catch(e){}
 const save=()=>{try{localStorage.setItem("pl_prog",JSON.stringify(P))}catch(e){}};
-const rate=(id,v)=>{const p=P[id]||{box:0};p.box=v==2?Math.min(4,p.box+1):v==1?p.box:0;p.due=Date.now()+GAP[p.box]*DAY;p.n=(p.n||0)+1;P[id]=p;save()};
-const isDue=q=>P[q.id]&&P[q.id].due<=Date.now()&&P[q.id].box<4;
+const rate=(id,v,t)=>{const p=P[id]||{box:0};p.box=v==2?Math.min(4,p.box+1):v==1?p.box:0;p.due=Date.now()+GAP[p.box]*DAY;p.n=(p.n||0)+1;if(t)p.t=t;P[id]=p;save()};
+const TM=i=>i<4||i==6||i==7?"Joins & data quality":i<6?"Plant codes":i<10?"Job codes":i<14?"Chinook":i<17?"CS50 songs":i<20?"CS50 movies":"P-cards";
+const ent=()=>Object.keys(P).filter(k=>/^(q|g)\d/.test(k)&&P[k].box!=null),tpc=k=>P[k].t||(k[0]=="q"?TM(+k.slice(1)):null),dueIds=()=>ent().filter(k=>P[k].due<=Date.now()&&P[k].box<4);
+let CE=null;function nav(h,f){if(location.hash=="#"+h)f();else{window.go=f;location.hash="#"+h}}
 const rng=s=>()=>{s|=0;s=s+0x6D2B79F5|0;let t=Math.imul(s^s>>>15,1|s);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
 function shuffle(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
 
@@ -69,13 +71,15 @@ function card(q,i){return `<div class="card"><span class="tag">${q.tool}</span><
 <p>${i!=null?`<b>${i}.</b> `:""}${esc(q.q)}</p><div id="a-${q.id}"><button onclick="reveal('${q.id}')">Show model answer</button></div></div>`}
 function reveal(id){const q=Q.find(x=>x.id==id)||G[id],b=P[id]?`<span class="mu">Box ${P[id].box}/4 · attempts ${P[id].n}</span>`:"";
 $("#a-"+id).innerHTML=`<div class="ans"><pre>${esc(q.a)}</pre><div class="row"><span class="mu">How did you do?</span><button class="m" onclick="rt('${id}',0)">Missed it</button><button class="w" onclick="rt('${id}',1)">Partly</button><button class="g" onclick="rt('${id}',2)">Got it</button>${b}</div></div>`}
-function rt(id,v){if(id[0]!="g")rate(id,v);$("#a-"+id).innerHTML=`<span class="${v==2?"ok":"er"}">Saved. ${v==2?"Moves up a box; shows again later.":v==1?"Stays in the same box.":"Back to box 0: due for review now."}</span>`}
+function rt(id,v){const q=Q.find(x=>x.id==id)||G[id];rate(id,v,id[0]=="g"?q.topic:TM(+id.slice(1)));
+if(CE&&CE.ids.includes(id)&&!(id in CE.v)){CE.v[id]=v;if(Object.keys(CE.v).length==8){P["x_E"+CE.n]={d:1,s:Math.round(Object.values(CE.v).reduce((a,b)=>a+b,0)/16*100)};save()}}
+$("#a-"+id).innerHTML=`<span class="${v==2?"ok":"er"}">Saved. ${v==2?"Moves up a box; shows again later.":v==1?"Stays in the same box.":"Back to box 0: due for review now."}</span>`}
 
 // ---------- views ----------
 const V={};
-V.home=()=>{const d=Q.filter(isDue).length,seen=Q.filter(q=>P[q.id]).length;
+V.home=()=>{const d=dueIds().length,seen=ent().length,xe=Object.keys(P).filter(k=>/^x_E\d/.test(k)).length,xr=Object.keys(P).filter(k=>/^x_REG/.test(k)).length;
 A.innerHTML=`<h1>Practice the exam you will actually take</h1><p>The oral exam contains one full <b>data manipulation exam</b> (Excel and SQL) and one full <b>data interpretation (regression) exam</b>. Everything here is built from the course cases: NYC film permits, ETL, IntegrateCo, Chinook, CS50 songs and movies, P-cards, and the restaurant regression. There are 800 data manipulation exams (E001 to E800) and 30 data interpretation exams (REG001 to REG030); each ID is the same for everyone.</p>
-<div class="card"><h2 style="margin-top:0">Your status</h2><p>${seen} of ${Q.length} questions attempted · <b>${d}</b> due for review.</p><div class="row"><a href="#progress"><button class="p">Open my readiness dashboard</button></a><a href="#exams"><button>Start an exam</button></a></div></div>
+<div class="card"><h2 style="margin-top:0">Your status</h2><p>${seen} questions self-rated · <b>${d}</b> due for review · ${xe}/800 manipulation and ${xr}/30 interpretation exams done.</p><div class="row"><a href="#progress"><button class="p">Open my readiness dashboard</button></a><a href="#exams"><button>Start an exam</button></a></div></div>
 <div class="card"><b>What is new compared with a plain question list:</b> every answer you reveal is self-graded, and the site turns that into a topic-by-topic readiness score and a spaced-repetition review queue, so you spend your time on what you actually miss.</div>`};
 V.bank=()=>{const T=[...new Set(Q.map(q=>q.topic))];
 A.innerHTML=`<h1>Question bank</h1><div class="row"><select id="ft"><option value="">All tools</option><option>Excel</option><option>SQL</option></select><select id="fp"><option value="">All topics</option>${T.map(t=>`<option>${esc(t)}</option>`).join("")}</select></div><div id="list"></div>`;
@@ -102,19 +106,31 @@ const SX={"Chinook":[g1("Chinook",["ch",k=>`How many invoices have the billing c
 "P-cards":[g1("P-cards",["pc",k=>`How many 2014 P-card transactions are for $${k} or more?`,k=>`SELECT COUNT(*) FROM pcards WHERE Year = 2014 AND Amount >= ${k};`,"P-card Task 4"]),g1("P-cards",["pm",k=>`How many P-card transactions were made in month ${k} of 2014?`,k=>`SELECT COUNT(*) FROM pcards WHERE Year = 2014 AND Month = ${k};`,"P-card Task 4"]),s(20),s(21),s(22),s(23)]};
 const XT=Object.keys(EX),ST=Object.keys(SX),theme=n=>[XT[(n-1)%3],ST[Math.floor((n-1)/3)%4]];
 function draw(L,r,k,n,off){const out=[],seen={};let t=0;while(out.length<k&&t++<80){const q=pk(L,r)(r);if(seen[q.q])continue;seen[q.q]=1;const x={...q,id:q.id=="g"?"g"+n+"_"+(off+out.length):q.id};G[x.id]=x;out.push(x)}return out}
-function exam(n){const r=rng(n*7919+13),[e,s]=theme(n),qs=[...draw(EX[e],r,4,n,0),...draw(SX[s],r,4,n,4)];
+function build(n){const r=rng(n*7919+13),[e,s]=theme(n);return[...draw(EX[e],r,4,n,0),...draw(SX[s],r,4,n,4)]}
+function exam(n){const qs=build(n),[e,s]=theme(n);CE={n,ids:qs.map(q=>q.id),v:{}};
 $("#ex").innerHTML=`<h2>E${pad(n)} · ${esc(e)} + ${esc(s)}</h2><div class="row"><button class="p" id="tb" onclick="timer()">Start 12:00 timer</button><b id="clk">12:00</b></div>`+qs.map((q,i)=>card(q,i+1)).join("")+`<div class="row"><button class="g" onclick="done('x_E${n}',this)">Mark exam as done</button></div>`;scrollTo(0,0)}
-function done(k,b){P[k]=1;save();b.textContent="Done ✓ saved"}
+function done(k,b){P[k]=P[k]||{d:1};save();b.textContent="Done ✓ saved"}
 function timer(){clearInterval(tm);let t=720;$("#tb").textContent="Restart";tm=setInterval(()=>{const c=$("#clk");if(!c)return clearInterval(tm);t--;c.textContent=t<=0?"Time’s up":String(Math.floor(t/60)).padStart(2,"0")+":"+String(t%60).padStart(2,"0");if(t<=0)clearInterval(tm)},1e3)}
 V.exams=()=>{clearInterval(tm);const o=a=>a.map(t=>`<option>${esc(t)}</option>`).join("");
 A.innerHTML=`<h1>Data manipulation exams</h1><p>800 exams, each with 8 questions (4 Excel and 4 SQL) built around one Excel topic and one SQL topic. Exam IDs are fixed, so E123 is the same for everyone. Many numbers, codes and filters change from exam to exam.</p><div class="row"><button class="p" onclick="exam(1+Math.floor(Math.random()*800))">Choose one for me</button><select id="fe"><option value="">All Excel topics</option>${o(XT)}</select><select id="fs"><option value="">All SQL topics</option>${o(ST)}</select></div><div id="ex"></div><div class="grid" id="gr"></div>`;
 const f=()=>{const a=$("#fe").value,b=$("#fs").value;let h="";for(let n=1;n<=800;n++){const[e,s]=theme(n);if((a&&a!=e)||(b&&b!=s))continue;h+=`<button class="gc" onclick="exam(${n})"><span class="mu">E${pad(n)}${P["x_E"+n]?" ✓":""}</span><br><b>${esc(e)}</b><br><span class="mu">+ ${esc(s)}</span><br><span class="mu">8 questions · Excel &amp; SQL · 12:00</span></button>`}$("#gr").innerHTML=h};$("#fe").onchange=$("#fs").onchange=f;f()};
-V.progress=()=>{const T=[...new Set(Q.map(q=>q.topic))],due=Q.filter(isDue);
-const rows=T.map(t=>{const l=Q.filter(q=>q.topic==t),m=l.reduce((s,q)=>s+(P[q.id]?P[q.id].box:0),0)/(l.length*4)*100,a=l.filter(q=>P[q.id]).length;
-return `<tr><td>${esc(t)}</td><td>${a}/${l.length}</td><td style="width:40%"><div class="bar"><i style="width:${m}%"></i></div></td><td>${Math.round(m)}%</td></tr>`}).join("");
-const tot=Math.round(Q.reduce((s,q)=>s+(P[q.id]?P[q.id].box:0),0)/(Q.length*4)*100);
-A.innerHTML=`<h1>My readiness: ${tot}%</h1><p class="mu">Progress is stored only in this browser. Readiness counts a question as mastered after you rate it “Got it” on several separate days.</p><div class="card sc"><table><tr><th>Topic</th><th>Tried</th><th></th><th>Mastery</th></tr>${rows}</table></div>
-<h2>Review queue (${due.length} due)</h2>${due.length?due.map(q=>card(q)).join(""):`<p class="mu">Nothing due. Attempt more questions or come back tomorrow.</p>`}
+V.progress=()=>{const E=ent(),T=[...XT,...ST],dE=[],dR=[];
+for(let n=1;n<=800;n++)if(P["x_E"+n])dE.push(n);for(let n=1;n<=30;n++)if(P["x_REG"+n])dR.push(n);
+const M={},mm=E.length?E.reduce((s,k)=>s+P[k].box,0)/(E.length*4)*100:-1;
+const rows=T.map(t=>{const k=E.filter(x=>tpc(x)==t),a=k.length?k.reduce((s,x)=>s+P[x].box,0)/(k.length*4)*100:0,d=dE.filter(n=>theme(n).includes(t)).length;M[t]=k.length?a:-1;return `<tr><td>${esc(t)}</td><td>${k.length}</td><td>${d}</td><td style="width:32%"><div class="bar"><i style="width:${a}%"></i></div></td><td>${Math.round(a)}%</td></tr>`}).join("");
+const SK=["Predict a value","Effect of a variable","Significance test","Confidence interval"],AC=[];let ta=0,to=0;
+const rr=SK.map((s,i)=>{let a=0,o=0;for(let n=1;n<=30;n++){const x=P["r_"+n+"_"+i];if(x){a++;o+=x.ok}}ta+=a;to+=o;AC.push(a?o/a:-1);const p=a?o/a*100:0;return `<tr><td>${s}</td><td>${a}</td><td style="width:32%"><div class="bar"><i style="width:${p}%"></i></div></td><td>${Math.round(p)}%</td></tr>`}).join("");
+const parts=[];if(mm>=0)parts.push(mm);if(ta)parts.push(to/ta*100);const tot=parts.length?Math.round(parts.reduce((a,b)=>a+b,0)/parts.length):0;
+const att=[];for(let n=1;n<=30;n++){const c=[0,1,2,3].filter(i=>P["r_"+n+"_"+i]);if(c.length)att.push(`<button class="gc" onclick="nav('regression',()=>reg(${n}))">REG${pad(n)} ${esc(RD[n-1].n)}<br><span class="mu">${c.reduce((s,i)=>s+P["r_"+n+"_"+i].ok,0)}/${c.length} correct${P["x_REG"+n]?" · done ✓":""}</span></button>`)}
+const lo=(L)=>L.slice().sort((a,b)=>M[a]-M[b])[0],we=lo(XT),ws=lo(ST);let rn=0;for(let n=1;n<=800&&!rn;n++){const[e,s]=theme(n);if(e==we&&s==ws&&!P["x_E"+n])rn=n}
+const wi=AC.indexOf(Math.min(...AC)),rg=[...Array(30).keys()].map(i=>i+1).find(n=>!P["x_REG"+n]);
+const due=dueIds();due.forEach(id=>{if(id[0]=="g")build(+id.match(/^g(\d+)/)[1])});
+A.innerHTML=`<h1>My readiness: ${tot}%</h1><p class="mu">Combines your self-rated mastery on manipulation questions with your accuracy on regression questions. Progress is stored only in this browser.</p>
+<div class="grid"><div class="card"><b>${dE.length} / 800</b><br><span class="mu">manipulation exams done</span></div><div class="card"><b>${dR.length} / 30</b><br><span class="mu">interpretation exams done</span></div><div class="card"><b>${E.length}</b><br><span class="mu">questions self-rated</span></div></div>
+<div class="card"><b>Recommended next</b><div class="row">${rn?`<button class="p" onclick="nav('exams',()=>exam(${rn}))">E${pad(rn)} · ${esc(we)} + ${esc(ws)}</button><span class="mu">weakest manipulation topics</span>`:""}${rg?`<button class="p" onclick="nav('regression',()=>reg(${rg}))">REG${pad(rg)} · ${esc(RD[rg-1].n)}</button><span class="mu">${ta?"weakest skill: "+SK[wi]:"start here"}</span>`:""}</div></div>
+<h2>Data manipulation</h2><div class="card sc"><table><tr><th>Topic</th><th>Rated</th><th>Exams done</th><th></th><th>Mastery</th></tr>${rows}</table></div>
+<h2>Data interpretation</h2><div class="card sc"><table><tr><th>Skill</th><th>Answered</th><th></th><th>Accuracy</th></tr>${rr}</table></div>${att.length?`<div class="grid">${att.join("")}</div>`:""}
+<h2>Review queue (${due.length} due)</h2>${due.length?due.slice(0,20).map(id=>card(G[id]||Q.find(x=>x.id==id))).join(""):`<p class="mu">Nothing due. Rate more questions or come back tomorrow.</p>`}
 <div class="row"><button onclick="if(confirm('Erase all progress?')){P={};save();V.progress()}">Reset progress</button></div>`};
 
 // ---------- regression exams: 30 themed exams x 4 questions, each question has its own model ----------
@@ -151,7 +167,7 @@ Insurance claims|claim amount ($)|4000|driver age (years):18-75-,vehicle value (
 function model(D,r){const u=(a,b)=>a+(b-a)*r(),V=shuffle(D.v,r).slice(0,3).map(v=>{const b=sg(v.s*D.b*u(.08,.3)/(v.hi-v.lo)),se=sg(Math.abs(b)/(r()<.35?u(.5,1.7):u(2.6,9)));return{...v,b,se,t:b/se,x:v.hi-v.lo==1?(r()<.5?1:0):ri(v.lo,v.hi,r)}}),b0=sg(D.b*u(.3,.6));return{D,V,b0,se0:sg(b0/u(3,8)),r2:+u(.45,.92).toFixed(2),n:ri(80,400,r)}}
 const tbl=m=>`<div class="sc"><b>Dependent variable: ${esc(m.D.dv)} · R² = ${m.r2} · n = ${m.n}</b><table><tr><th>Variable</th><th>Coefficient</th><th>Std. error</th><th>t-stat</th></tr><tr><td>Intercept</td><td>${m.b0}</td><td>${m.se0}</td><td>${(m.b0/m.se0).toFixed(2)}</td></tr>${m.V.map(v=>`<tr><td>${esc(v.n)}</td><td>${v.b}</td><td>${v.se}</td><td>${v.t.toFixed(2)}</td></tr>`).join("")}</table></div>`;
 V.regression=()=>{A.innerHTML=`<h1>Data interpretation exams</h1><p>Each exam contains four regression questions. Each question has its own model and coefficients.</p><div class="row"><button class="p" onclick="reg(1+Math.floor(Math.random()*30))">Choose one for me</button></div><div id="rg"></div><h2>Browse all 30 data interpretation exams</h2><div class="grid">${RD.map((d,i)=>`<button class="gc" onclick="reg(${i+1})"><span class="mu">REG${pad(i+1)}${P["x_REG"+(i+1)]?" ✓":""}</span><br><b>${esc(d.n)}</b><br><span class="mu">4 questions · Data interpretation</span></button>`).join("")}</div>`};
-function reg(n){const D=RD[n-1];window.K=[];let h=`<h2>REG${pad(n)} · ${esc(D.n)}</h2>`;
+function reg(n){const D=RD[n-1];window.K=[];window.RN=n;let h=`<h2>REG${pad(n)} · ${esc(D.n)}</h2>`;
 for(let i=0;i<4;i++){const r=rng(n*1000+i*37+5),m=model(D,r),v=m.V[ri(0,2,r)];let q,a;
 if(i==0){const p=m.b0+m.V.reduce((s,w)=>s+w.b*w.x,0);q=`Predict ${D.dv} when ${m.V.map(w=>w.n+" = "+w.x).join("; ")}.`;a={k:"n",v:p,tol:Math.max(.5,Math.abs(p)*.005),h:"Intercept + Σ coefficient × value = "+p.toFixed(2)}}
 else if(i==1){const k=v.hi-v.lo==1?1:pk([1,5,10],r);q=`By how much does ${D.dv} change when ${v.n} rises by ${k}, other variables held fixed?`;a={k:"n",v:v.b*k,tol:Math.abs(v.b*k)*.01+.001,h:k+" × "+v.b+" = "+sg(v.b*k)}}
@@ -159,8 +175,8 @@ else if(i==2){const z=Math.abs(v.t)>1.96;q=`Is ${v.n} statistically significant 
 else{const lo=v.b-1.96*v.se;q=`Give the lower bound of the approximate 95% confidence interval for the coefficient on ${v.n}.`;a={k:"n",v:lo,tol:Math.abs(lo)*.01+.001,h:v.b+" − 1.96 × "+v.se+" = "+sg(lo)}}
 K.push(a);h+=`<div class="card"><p><b>${i+1}.</b> ${esc(q)}</p>${tbl(m)}<div class="row">${a.k=="n"?`<input id="r${i}" type="number" step="any"><button onclick="ck(${i})">Check</button>`:`<button onclick="ck(${i},1)">Yes</button><button onclick="ck(${i},0)">No</button>`}<span id="o${i}"></span></div></div>`}
 $("#rg").innerHTML=h+`<div class="row"><button class="g" onclick="done('x_REG${n}',this)">Mark exam as done</button></div>`;scrollTo(0,0)}
-function ck(i,v){const a=K[i],ok=a.k=="n"?Math.abs(+$("#r"+i).value-a.v)<=a.tol:(v==1)==a.v;$("#o"+i).innerHTML=ok?`<b class="ok">Correct.</b> ${a.h}`:`<b class="er">Not quite.</b> ${a.h}`}
+function ck(i,v){const a=K[i],ok=a.k=="n"?Math.abs(+$("#r"+i).value-a.v)<=a.tol:(v==1)==a.v;P["r_"+RN+"_"+i]={ok:+ok};if([0,1,2,3].every(j=>P["r_"+RN+"_"+j]))P["x_REG"+RN]={d:1,s:25*[0,1,2,3].reduce((t,j)=>t+P["r_"+RN+"_"+j].ok,0)};save();$("#o"+i).innerHTML=ok?`<b class="ok">Correct.</b> ${a.h}`:`<b class="er">Not quite.</b> ${a.h}`}
 
-function route(){const h=(location.hash||"#home").slice(1);document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")=="#"+h));clearInterval(tm);(V[h]||V.home)();scrollTo(0,0)}
+function route(){const h=(location.hash||"#home").slice(1);document.querySelectorAll("nav a").forEach(a=>a.classList.toggle("on",a.getAttribute("href")=="#"+h));clearInterval(tm);(V[h]||V.home)();scrollTo(0,0);if(window.go){const f=window.go;window.go=null;f()}}
 addEventListener("hashchange",route);route();
 </script></body></html>
